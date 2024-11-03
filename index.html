@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ревізія в магазині фруктів</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { margin-top: 20px; border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+    <h1>Ревізія в магазині фруктів</h1>
+    <label for="storeName">Назва магазину:</label>
+    <input type="text" id="storeName" placeholder="Введіть назву магазину" required>
+    
+    <form id="fruitForm">
+        <input type="text" id="fruitName" placeholder="Назва фрукта" required>
+        <input type="number" id="fruitQuantity" placeholder="Кількість" required min="0">
+        <input type="number" id="containerQuantity" placeholder="Кількість тари" required min="0" step="0.01">
+        <button type="submit">Додати фрукт</button>
+    </form>
+    
+    <h2>Список фруктів для <span id="storeNameDisplay"></span></h2>
+    <table id="inventoryTable">
+        <thead>
+            <tr>
+                <th>Назва</th>
+                <th>Кількість</th>
+                <th>Кількість тари</th>
+                <th>Залишок фруктів</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <button id="exportButton">Експортувати в Excel</button>
+
+    <script>
+        const inventory = {};
+
+        document.getElementById('fruitForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const storeName = document.getElementById('storeName').value.trim();
+            const name = document.getElementById('fruitName').value.trim().toLowerCase();
+            const quantity = parseFloat(document.getElementById('fruitQuantity').value);
+            const containerQuantity = parseFloat(document.getElementById('containerQuantity').value);
+
+            if (quantity < 0) {
+                alert("Кількість не може бути від'ємною.");
+                return;
+            }
+
+            if (isNaN(containerQuantity) || containerQuantity < 0) {
+                alert("Введіть коректну кількість тари.");
+                return;
+            }
+
+            const remainingQuantity = quantity - containerQuantity;
+
+            if (remainingQuantity < 0) {
+                alert("Кількість тари не може перевищувати кількість фруктів.");
+                return;
+            }
+
+            if (inventory[name]) {
+                inventory[name].quantity += quantity;
+                inventory[name].containerQuantity += containerQuantity; // Додаємо кількість тари
+            } else {
+                inventory[name] = { quantity, containerQuantity };
+            }
+
+            updateInventoryTable(storeName);
+            clearForm();
+        });
+
+        function updateInventoryTable(storeName) {
+            const tableBody = document.querySelector('#inventoryTable tbody');
+            const storeNameDisplay = document.getElementById('storeNameDisplay');
+            tableBody.innerHTML = '';
+
+            storeNameDisplay.textContent = storeName; // Відображення назви магазину
+
+            // Отримуємо і сортуємо фрукти в алфавітному порядку
+            const sortedFruits = Object.entries(inventory).sort(([a], [b]) => a.localeCompare(b));
+
+            for (const [fruit, info] of sortedFruits) {
+                const remainingQuantity = info.quantity - info.containerQuantity;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${fruit}</td>
+                    <td>${info.quantity.toFixed(2)}</td>
+                    <td>${info.containerQuantity.toFixed(2)}</td>
+                    <td>${remainingQuantity.toFixed(2)}</td>
+                `;
+                tableBody.appendChild(row);
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('fruitName').value = '';
+            document.getElementById('fruitQuantity').value = '';
+            document.getElementById('containerQuantity').value = '';
+        }
+
+        // Функція експорту в Excel
+        document.getElementById('exportButton').addEventListener('click', function() {
+            const storeName = document.getElementById('storeName').value.trim();
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `Назва магазину: ${storeName}\n`; // Додаємо назву магазину
+            csvContent += "Назва,Кількість,Кількість тари,Залишок фруктів\n"; // Заголовки
+
+            const sortedFruits = Object.entries(inventory).sort(([a], [b]) => a.localeCompare(b));
+
+            for (const [fruit, info] of sortedFruits) {
+                const remainingQuantity = info.quantity - info.containerQuantity;
+                csvContent += `${fruit},${info.quantity.toFixed(2)},${info.containerQuantity.toFixed(2)},${remainingQuantity.toFixed(2)}\n`;
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "inventory.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
